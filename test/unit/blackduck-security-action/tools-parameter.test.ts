@@ -30,17 +30,16 @@ beforeEach(() => {
   Object.defineProperty(inputs, 'BLACKDUCKSCA_POLICY_BADGES_MAX_COUNT', {value: null})
   Object.defineProperty(inputs, 'POLARIS_TEST_SCA_LOCATION', {value: undefined, configurable: true})
   Object.defineProperty(inputs, 'POLARIS_TEST_SAST_LOCATION', {value: undefined, configurable: true})
-})
 
-afterAll(() => {
-  cleanupTempDir(tempPath)
-})
-afterEach(() => {
   // Clear all test-related inputs first
   Object.defineProperty(inputs, 'POLARIS_TEST_SCA_LOCATION', {value: undefined, configurable: true})
   Object.defineProperty(inputs, 'POLARIS_TEST_SAST_LOCATION', {value: undefined, configurable: true})
   Object.defineProperty(inputs, 'POLARIS_TEST_SCA_TYPE', {value: undefined, configurable: true})
   Object.defineProperty(inputs, 'POLARIS_TEST_SAST_TYPE', {value: undefined, configurable: true})
+})
+
+afterAll(() => {
+  cleanupTempDir(tempPath)
 })
 
 const fs = require('fs')
