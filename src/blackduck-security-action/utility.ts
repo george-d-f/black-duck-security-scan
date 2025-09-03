@@ -116,7 +116,6 @@ export function updatePolarisSarifPath(productInputFilPath: string, sarifPath: s
 
       // Write back the updated JSON with proper formatting
       writeFileSync(productInputFilPath, JSON.stringify(config, null, 2))
-      info(`Successfully updated Polaris SARIF file path:::: ${config.data.polaris.reports.sarif.file.path}`)
     } else {
       // Ensure data structure exists
       config.data = config.data || {}
@@ -128,7 +127,6 @@ export function updatePolarisSarifPath(productInputFilPath: string, sarifPath: s
       // Update path and write back
       config.data.polaris.reports.sarif.file.path = sarifPath
       writeFileSync(productInputFilPath, JSON.stringify(config, null, 2))
-      info(`Successfully updated Polaris SARIF file path:::: ${sarifPath}`)
     }
   } catch (error) {
     info('Error updating SARIF file path.')
@@ -147,7 +145,6 @@ export function updateBlackDuckSarifPath(productInputFilPath: string, sarifPath:
 
       // Write back the updated JSON with proper formatting
       writeFileSync(productInputFilPath, JSON.stringify(config, null, 2))
-      info('Successfully updated Polaris SARIF file path:::: '.concat(config.data.blackducksca.reports.sarif.file.path))
     } else {
       // Ensure data structure exists
       config.data = config.data || {}
@@ -159,7 +156,6 @@ export function updateBlackDuckSarifPath(productInputFilPath: string, sarifPath:
       // Update path and write back
       config.data.blackducksca.reports.sarif.file.path = sarifPath
       writeFileSync(productInputFilPath, JSON.stringify(config, null, 2))
-      info(`Successfully updated Polaris SARIF file path:::: ${sarifPath}`)
     }
   } catch (error) {
     info('Error updating SARIF file path.')
@@ -310,4 +306,9 @@ export function clearHttpClientCache(): void {
   _httpClientCache = null
   _httpClientConfigHash = null
   debug('HTTP client and HTTPS agent caches cleared')
+}
+export function validateSourceUploadValue(bridgeVersion: string): void {
+  if (bridgeVersion >= constants.SOURCE_UPLOAD_UNSUPPORTED_BRIDGE_VERSION && inputs.POLARIS_ASSESSMENT_MODE === 'SOURCE_UPLOAD') {
+    warning('The SOURCE_UPLOAD assessment mode for Polaris is deprecated and will be removed in future releases starting from Bridge version 3.7.8. Please use polaris.test.sast.location=remote to enable this feature.')
+  }
 }

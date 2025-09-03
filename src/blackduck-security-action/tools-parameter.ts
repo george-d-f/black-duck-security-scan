@@ -106,6 +106,19 @@ export class BridgeToolsParameter {
         }
       }
     }
+    if (inputs.POLARIS_TEST_SCA_LOCATION || inputs.POLARIS_TEST_SAST_LOCATION) {
+      polData.data.polaris.test = {}
+      if (inputs.POLARIS_TEST_SCA_LOCATION) {
+        polData.data.polaris.test.sca = {
+          location: inputs.POLARIS_TEST_SCA_LOCATION
+        }
+      }
+      if (inputs.POLARIS_TEST_SAST_LOCATION) {
+        polData.data.polaris.test.sast = {
+          location: inputs.POLARIS_TEST_SAST_LOCATION
+        }
+      }
+    }
 
     if (isBoolean(inputs.POLARIS_WAITFORSCAN)) {
       polData.data.polaris.waitForScan = parseToBoolean(inputs.POLARIS_WAITFORSCAN)
