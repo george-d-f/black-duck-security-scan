@@ -35,6 +35,13 @@ beforeEach(() => {
 afterAll(() => {
   cleanupTempDir(tempPath)
 })
+afterEach(() => {
+  // Clear all test-related inputs first
+  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_LOCATION', {value: undefined, configurable: true})
+  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_LOCATION', {value: undefined, configurable: true})
+  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_TYPE', {value: undefined, configurable: true})
+  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_TYPE', {value: undefined, configurable: true})
+})
 
 const fs = require('fs')
 mock('fs')
@@ -1417,12 +1424,6 @@ it('should pass SRM fields and project directory field to bridge', () => {
   expect(jsonData.data.project.directory).toBe('SRM_PROJECT_DIRECTORY')
 })
 test('Test getFormattedCommandForPolaris with POLARIS_TEST_SCA_LOCATION only', () => {
-  // Clear all test-related inputs first
-  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_LOCATION', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_LOCATION', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_TYPE', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_TYPE', {value: undefined, configurable: true})
-
   // Set required inputs
   Object.defineProperty(inputs, 'POLARIS_SERVER_URL', {value: 'server_url', configurable: true})
   Object.defineProperty(inputs, 'POLARIS_ACCESS_TOKEN', {value: 'access_token', configurable: true})
@@ -1446,12 +1447,6 @@ test('Test getFormattedCommandForPolaris with POLARIS_TEST_SCA_LOCATION only', (
 })
 
 test('Test getFormattedCommandForPolaris with POLARIS_TEST_SAST_LOCATION only', () => {
-  // Clear all test-related inputs first
-  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_LOCATION', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_LOCATION', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_TYPE', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_TYPE', {value: undefined, configurable: true})
-
   // Set required inputs
   Object.defineProperty(inputs, 'POLARIS_SERVER_URL', {value: 'server_url', configurable: true})
   Object.defineProperty(inputs, 'POLARIS_ACCESS_TOKEN', {value: 'access_token', configurable: true})
@@ -1475,12 +1470,6 @@ test('Test getFormattedCommandForPolaris with POLARIS_TEST_SAST_LOCATION only', 
 })
 
 test('Test getFormattedCommandForPolaris with both POLARIS_TEST_SCA_LOCATION and POLARIS_TEST_SAST_LOCATION', () => {
-  // Clear all test-related inputs first
-  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_LOCATION', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_LOCATION', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SCA_TYPE', {value: undefined, configurable: true})
-  Object.defineProperty(inputs, 'POLARIS_TEST_SAST_TYPE', {value: undefined, configurable: true})
-
   // Set required inputs
   Object.defineProperty(inputs, 'POLARIS_SERVER_URL', {value: 'server_url', configurable: true})
   Object.defineProperty(inputs, 'POLARIS_ACCESS_TOKEN', {value: 'access_token', configurable: true})
