@@ -317,5 +317,5 @@ export const INTEGRATIONS_BLACKDUCK_SCA_DEFAULT_SARIF_FILE_PATH = path.join('.bl
 export const INTEGRATIONS_GITHUB_CLOUD = 'Integrations-github-cloud'
 export const INTEGRATIONS_GITHUB_EE = 'Integrations-github-ee'
 export const VERSION = '3.5.0'
-export const BRIDGE_VERSION = '3.7.8'
+export const SOURCE_UPLOAD_UNSUPPORTED_BRIDGE_VERSION = '3.7.8'
 export const NETWORK_SSL_VALIDATION_ERROR_MESSAGE = 'Both "network.ssl.cert.file" and "network.ssl.trustAll" are set. Only one of these resources should be set at a time."'
