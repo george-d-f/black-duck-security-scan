@@ -343,7 +343,22 @@ export class BridgeToolsParameter {
         /** Set Coverity PR comment inputs in case of PR context */
         info('Coverity PR comment is enabled')
         covData.data.github = this.getGithubRepoInfo()
-        covData.data.coverity.automation = {prcomment: true}
+
+        // Always use new format initially - version detection will convert if needed
+        const prCommentImpacts: string[] = []
+        if (inputs.COVERITY_PRCOMMENT_IMPACTS && inputs.COVERITY_PRCOMMENT_IMPACTS.length > 0) {
+          const impactValues = inputs.COVERITY_PRCOMMENT_IMPACTS.split(',')
+          for (const impact of impactValues) {
+            if (impact.trim()) {
+              prCommentImpacts.push(impact.trim().toUpperCase())
+            }
+          }
+        }
+
+        covData.data.coverity.prcomment = {
+          enabled: true,
+          ...(prCommentImpacts.length > 0 && {impacts: prCommentImpacts})
+        }
       } else {
         /** Log info if Coverity PR comment is enabled in case of non PR context */
         info(constants.COVERITY_PR_COMMENT_LOG_INFO_FOR_NON_PR_SCANS)
