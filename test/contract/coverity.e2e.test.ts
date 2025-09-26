@@ -88,7 +88,7 @@ describe('Coverity flow contract', () => {
     try {
       const resp = await run()
     } catch (err: any) {
-      expect(err).toContain('Missing required github token for fix pull request')
+      expect(err.message).toContain('Missing required github token for fix pull request/pull request comments/Github Badges')
       error(err)
     }
   })
