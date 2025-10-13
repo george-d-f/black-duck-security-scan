@@ -3,6 +3,7 @@ import * as tls from 'tls'
 import * as https from 'https'
 import {debug, warning} from '@actions/core'
 import * as inputs from './inputs'
+import * as httpsProxyAgent from 'https-proxy-agent'
 
 export interface SSLConfig {
   trustAllCerts: boolean
@@ -59,21 +60,28 @@ export function getSSLConfig(): SSLConfig {
  * Creates an HTTPS agent with combined SSL configuration
  */
 export function createHTTPSAgent(sslConfig: SSLConfig): https.Agent {
+  const proxyConfig = getProxyConfig()
+  const sslOptions: https.AgentOptions = {}
+
   if (sslConfig.trustAllCerts) {
     debug('Creating HTTPS agent with SSL verification disabled')
-    return new https.Agent({
-      rejectUnauthorized: false
-    })
+    sslOptions.rejectUnauthorized = false
   }
 
   if (sslConfig.combinedCAs) {
     debug('Creating HTTPS agent with combined CA certificates')
-    return new https.Agent({
-      ca: sslConfig.combinedCAs,
-      rejectUnauthorized: true
-    })
+    sslOptions.ca = sslConfig.combinedCAs
+    sslOptions.rejectUnauthorized = true
   }
 
+  if (proxyConfig.useProxy && proxyConfig.proxyUrl) {
+    debug(`Creating HTTPS proxy agent with proxy: ${proxyConfig.proxyUrl.origin}`)
+    return new httpsProxyAgent.HttpsProxyAgent(proxyConfig.proxyUrl, sslOptions)
+  }
+  if (sslConfig) {
+    debug('Creating HTTPS agent without proxy')
+    return new https.Agent(sslOptions)
+  }
   debug('Creating default HTTPS agent')
   return new https.Agent()
 }
@@ -112,4 +120,18 @@ export function getSSLConfigHash(): string {
   const trustAll = parseToBoolean(inputs.NETWORK_SSL_TRUST_ALL)
   const certFile = inputs.NETWORK_SSL_CERT_FILE?.trim() || ''
   return `trustAll:${trustAll}|certFile:${certFile}`
+}
+
+function getProxyConfig(): {proxyUrl?: URL; useProxy: boolean} {
+  const httpsProxy = process.env.HTTPS_PROXY || process.env.https_proxy
+  const httpProxy = process.env.HTTP_PROXY || process.env.http_proxy
+
+  const proxyUrl = httpsProxy || httpProxy
+  if (!proxyUrl) return {useProxy: false}
+
+  try {
+    return {proxyUrl: new URL(proxyUrl), useProxy: true}
+  } catch {
+    return {useProxy: false}
+  }
 }
