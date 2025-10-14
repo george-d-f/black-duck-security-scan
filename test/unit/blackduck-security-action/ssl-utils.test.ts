@@ -6,6 +6,7 @@ describe('SSL Utils Unit Tests', () => {
   let mockFs: any
   let mockTls: any
   let mockCore: any
+  let mockHttpsProxyAgent: any
 
   beforeEach(() => {
     jest.resetModules()
@@ -29,11 +30,18 @@ describe('SSL Utils Unit Tests', () => {
       warning: jest.fn()
     }
 
+    mockHttpsProxyAgent = {
+      HttpsProxyAgent: jest.fn().mockImplementation(() => ({
+        type: 'HttpsProxyAgent'
+      }))
+    }
+
     // Mock modules
     jest.doMock('fs', () => mockFs)
     jest.doMock('tls', () => mockTls)
     jest.doMock('@actions/core', () => mockCore)
     jest.doMock('../../../src/blackduck-security-action/inputs', () => mockInputs)
+    jest.doMock('https-proxy-agent', () => mockHttpsProxyAgent)
 
     // Import after mocking
     sslUtils = require('../../../src/blackduck-security-action/ssl-utils')
@@ -160,14 +168,153 @@ describe('SSL Utils Unit Tests', () => {
     })
   })
 
+  describe('getProxyConfig', () => {
+    let originalEnv: NodeJS.ProcessEnv
+
+    beforeEach(() => {
+      originalEnv = {...process.env}
+    })
+
+    afterEach(() => {
+      process.env = originalEnv
+    })
+
+    test('should return useProxy=false when no proxy environment variables are set', () => {
+      delete process.env.HTTPS_PROXY
+      delete process.env.https_proxy
+      delete process.env.HTTP_PROXY
+      delete process.env.http_proxy
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result).toEqual({useProxy: false})
+    })
+
+    test('should return proxy config when HTTPS_PROXY is set', () => {
+      process.env.HTTPS_PROXY = 'https://proxy.example.com:8080'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('https://proxy.example.com:8080'))
+    })
+
+    test('should return proxy config when https_proxy is set', () => {
+      process.env.https_proxy = 'http://proxy.example.com:3128'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('http://proxy.example.com:3128'))
+    })
+
+    test('should return proxy config when HTTP_PROXY is set', () => {
+      process.env.HTTP_PROXY = 'http://proxy.company.com:8080'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('http://proxy.company.com:8080'))
+    })
+
+    test('should return proxy config when http_proxy is set', () => {
+      process.env.http_proxy = 'http://proxy.localhost:3128'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('http://proxy.localhost:3128'))
+    })
+
+    test('should prioritize HTTPS_PROXY over HTTP_PROXY', () => {
+      process.env.HTTPS_PROXY = 'https://https-proxy.example.com:8080'
+      process.env.HTTP_PROXY = 'http://http-proxy.example.com:3128'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('https://https-proxy.example.com:8080'))
+    })
+
+    test('should prioritize https_proxy over http_proxy', () => {
+      process.env.https_proxy = 'https://https-proxy.example.com:8080'
+      process.env.http_proxy = 'http://http-proxy.example.com:3128'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('https://https-proxy.example.com:8080'))
+    })
+
+    test('should prioritize uppercase over lowercase environment variables', () => {
+      process.env.HTTPS_PROXY = 'https://uppercase-proxy.example.com:8080'
+      process.env.https_proxy = 'https://lowercase-proxy.example.com:8080'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('https://uppercase-proxy.example.com:8080'))
+    })
+
+    test('should handle invalid proxy URLs gracefully', () => {
+      process.env.HTTPS_PROXY = 'invalid-url'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result).toEqual({useProxy: false})
+    })
+
+    test('should handle empty proxy URL', () => {
+      process.env.HTTPS_PROXY = ''
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result).toEqual({useProxy: false})
+    })
+
+    test('should handle proxy URL with authentication', () => {
+      process.env.HTTPS_PROXY = 'http://user:pass@proxy.example.com:8080'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('http://user:pass@proxy.example.com:8080'))
+    })
+
+    test('should handle socks proxy URL', () => {
+      process.env.HTTPS_PROXY = 'socks5://socks-proxy.example.com:1080'
+
+      const result = sslUtils.getProxyConfig()
+
+      expect(result.useProxy).toBe(true)
+      expect(result.proxyUrl).toEqual(new URL('socks5://socks-proxy.example.com:1080'))
+    })
+  })
+
   describe('createHTTPSAgent', () => {
+    let originalEnv: NodeJS.ProcessEnv
+
+    beforeEach(() => {
+      originalEnv = {...process.env}
+      // Clear proxy environment variables by default
+      delete process.env.HTTPS_PROXY
+      delete process.env.https_proxy
+      delete process.env.HTTP_PROXY
+      delete process.env.http_proxy
+    })
+
+    afterEach(() => {
+      process.env = originalEnv
+    })
+
     test('should create agent with rejectUnauthorized=false when trustAllCerts is true', () => {
       const sslConfig = {trustAllCerts: true}
 
       const result = sslUtils.createHTTPSAgent(sslConfig)
 
       expect(result).toBeDefined()
-      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent with SSL verification disabled')
+      expect(mockCore.debug).toHaveBeenCalledWith('SSL verification disabled for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
     })
 
     test('should create agent with combinedCAs when provided', () => {
@@ -179,7 +326,8 @@ describe('SSL Utils Unit Tests', () => {
       const result = sslUtils.createHTTPSAgent(sslConfig)
 
       expect(result).toBeDefined()
-      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent with combined CA certificates')
+      expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
     })
 
     test('should create default agent when no special config', () => {
@@ -188,7 +336,107 @@ describe('SSL Utils Unit Tests', () => {
       const result = sslUtils.createHTTPSAgent(sslConfig)
 
       expect(result).toBeDefined()
-      expect(mockCore.debug).toHaveBeenCalledWith('Creating default HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
+    })
+
+    test('should create proxy agent when HTTPS_PROXY is set with trustAllCerts=true', () => {
+      process.env.HTTPS_PROXY = 'https://proxy.example.com:8080'
+      const sslConfig = {trustAllCerts: true}
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://proxy.example.com:8080'), {rejectUnauthorized: false})
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('SSL verification disabled for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: https://proxy.example.com:8080')
+    })
+
+    test('should create proxy agent when HTTPS_PROXY is set with combinedCAs', () => {
+      process.env.HTTPS_PROXY = 'http://proxy.company.com:3128'
+      const sslConfig = {
+        trustAllCerts: false,
+        combinedCAs: ['ca1', 'ca2']
+      }
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('http://proxy.company.com:3128'), {
+        ca: ['ca1', 'ca2'],
+        rejectUnauthorized: true
+      })
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: http://proxy.company.com:3128')
+    })
+
+    test('should create proxy agent when HTTP_PROXY is set', () => {
+      process.env.HTTP_PROXY = 'http://proxy.localhost:8080'
+      const sslConfig = {trustAllCerts: false}
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('http://proxy.localhost:8080'), {})
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: http://proxy.localhost:8080')
+    })
+
+    test('should create proxy agent with authentication when proxy URL contains credentials', () => {
+      process.env.HTTPS_PROXY = 'http://user:pass@proxy.example.com:8080'
+      const sslConfig = {trustAllCerts: false}
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('http://user:pass@proxy.example.com:8080'), {})
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: http://proxy.example.com:8080')
+    })
+
+    test('should prioritize HTTPS_PROXY over HTTP_PROXY when both are set', () => {
+      process.env.HTTPS_PROXY = 'https://https-proxy.example.com:8080'
+      process.env.HTTP_PROXY = 'http://http-proxy.example.com:3128'
+      const sslConfig = {trustAllCerts: false}
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://https-proxy.example.com:8080'), {})
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: https://https-proxy.example.com:8080')
+    })
+
+    test('should create default agent when proxy URL is invalid', () => {
+      process.env.HTTPS_PROXY = 'invalid-url'
+      const sslConfig = {trustAllCerts: false}
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).not.toHaveBeenCalled()
+      expect(result).toBeDefined()
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
+    })
+
+    test('should combine SSL and proxy configurations correctly', () => {
+      process.env.HTTPS_PROXY = 'https://secure-proxy.example.com:8443'
+      const sslConfig = {
+        trustAllCerts: false,
+        customCA: 'custom-ca-cert',
+        combinedCAs: ['custom-ca-cert', 'system-ca-1', 'system-ca-2']
+      }
+
+      const result = sslUtils.createHTTPSAgent(sslConfig)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://secure-proxy.example.com:8443'), {
+        ca: ['custom-ca-cert', 'system-ca-1', 'system-ca-2'],
+        rejectUnauthorized: true
+      })
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: https://secure-proxy.example.com:8443')
     })
   })
 

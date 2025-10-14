@@ -57,33 +57,30 @@ export function getSSLConfig(): SSLConfig {
 }
 
 /**
- * Creates an HTTPS agent with combined SSL configuration
+ * Creates an HTTPS agent with Proxy and combined SSL configuration
  */
 export function createHTTPSAgent(sslConfig: SSLConfig): https.Agent {
   const proxyConfig = getProxyConfig()
   const sslOptions: https.AgentOptions = {}
 
   if (sslConfig.trustAllCerts) {
-    debug('Creating HTTPS agent with SSL verification disabled')
     sslOptions.rejectUnauthorized = false
+    debug('SSL verification disabled for HTTPS agent')
   }
 
   if (sslConfig.combinedCAs) {
-    debug('Creating HTTPS agent with combined CA certificates')
     sslOptions.ca = sslConfig.combinedCAs
     sslOptions.rejectUnauthorized = true
+    debug('Using combined CA certificates for HTTPS agent')
   }
 
   if (proxyConfig.useProxy && proxyConfig.proxyUrl) {
     debug(`Creating HTTPS proxy agent with proxy: ${proxyConfig.proxyUrl.origin}`)
     return new httpsProxyAgent.HttpsProxyAgent(proxyConfig.proxyUrl, sslOptions)
   }
-  if (sslConfig) {
-    debug('Creating HTTPS agent without proxy')
-    return new https.Agent(sslOptions)
-  }
-  debug('Creating default HTTPS agent')
-  return new https.Agent()
+
+  debug('Creating HTTPS agent without proxy')
+  return new https.Agent(sslOptions)
 }
 
 /**
@@ -122,7 +119,12 @@ export function getSSLConfigHash(): string {
   return `trustAll:${trustAll}|certFile:${certFile}`
 }
 
-function getProxyConfig(): {proxyUrl?: URL; useProxy: boolean} {
+/**
+ * Gets Proxy configuration from environment variables.
+ * Supports HTTPS_PROXY/https_proxy and HTTP_PROXY/http_proxy.
+ * Returns proxy URL if set and valid, otherwise indicates no proxy.
+ */
+export function getProxyConfig(): {proxyUrl?: URL; useProxy: boolean} {
   const httpsProxy = process.env.HTTPS_PROXY || process.env.https_proxy
   const httpProxy = process.env.HTTP_PROXY || process.env.http_proxy
 
