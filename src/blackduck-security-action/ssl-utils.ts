@@ -4,6 +4,7 @@ import * as https from 'https'
 import {debug, warning} from '@actions/core'
 import * as inputs from './inputs'
 import * as httpsProxyAgent from 'https-proxy-agent'
+import {getProxyConfig} from './proxy-utils'
 
 export interface SSLConfig {
   trustAllCerts: boolean
@@ -59,8 +60,8 @@ export function getSSLConfig(): SSLConfig {
 /**
  * Creates an HTTPS agent with Proxy and combined SSL configuration
  */
-export function createHTTPSAgent(sslConfig: SSLConfig): https.Agent {
-  const proxyConfig = getProxyConfig()
+export function createHTTPSAgent(sslConfig: SSLConfig, targetUrl: string): https.Agent {
+  const proxyConfig = getProxyConfig(targetUrl)
   const sslOptions: https.AgentOptions = {}
 
   if (sslConfig.trustAllCerts) {
@@ -117,23 +118,4 @@ export function getSSLConfigHash(): string {
   const trustAll = parseToBoolean(inputs.NETWORK_SSL_TRUST_ALL)
   const certFile = inputs.NETWORK_SSL_CERT_FILE?.trim() || ''
   return `trustAll:${trustAll}|certFile:${certFile}`
-}
-
-/**
- * Gets Proxy configuration from environment variables.
- * Supports HTTPS_PROXY/https_proxy and HTTP_PROXY/http_proxy.
- * Returns proxy URL if set and valid, otherwise indicates no proxy.
- */
-export function getProxyConfig(): {proxyUrl?: URL; useProxy: boolean} {
-  const httpsProxy = process.env.HTTPS_PROXY || process.env.https_proxy
-  const httpProxy = process.env.HTTP_PROXY || process.env.http_proxy
-
-  const proxyUrl = httpsProxy || httpProxy
-  if (!proxyUrl) return {useProxy: false}
-
-  try {
-    return {proxyUrl: new URL(proxyUrl), useProxy: true}
-  } catch {
-    return {useProxy: false}
-  }
 }
