@@ -227,7 +227,7 @@ let _httpClientConfigHash: string | null = null
  *
  * @returns HTTPS agent configured with appropriate SSL settings
  */
-export function createSSLConfiguredHttpsAgent(): https.Agent {
+export function createSSLConfiguredHttpsAgent(targetUrl: string): https.Agent {
   const currentConfigHash = getSSLConfigHash()
 
   // Return cached agent if configuration hasn't changed
@@ -238,7 +238,7 @@ export function createSSLConfiguredHttpsAgent(): https.Agent {
 
   // Get SSL configuration and create agent
   const sslConfig = getSSLConfig()
-  _httpsAgentCache = createHTTPSAgent(sslConfig)
+  _httpsAgentCache = createHTTPSAgent(sslConfig, targetUrl)
 
   // Cache the configuration hash
   _httpsAgentConfigHash = currentConfigHash
@@ -308,8 +308,8 @@ export function createSSLConfiguredHttpClient(userAgent = 'BlackDuckSecurityActi
  *
  * @returns HTTPS agent configured with appropriate SSL settings
  */
-export function getSharedHttpsAgent(): https.Agent {
-  return createSSLConfiguredHttpsAgent()
+export function getSharedHttpsAgent(targetUrl: string): https.Agent {
+  return createSSLConfiguredHttpsAgent(targetUrl)
 }
 
 /**

@@ -3,6 +3,8 @@ import * as tls from 'tls'
 import * as https from 'https'
 import {debug, warning} from '@actions/core'
 import * as inputs from './inputs'
+import * as httpsProxyAgent from 'https-proxy-agent'
+import {getProxyConfig} from './proxy-utils'
 
 export interface SSLConfig {
   trustAllCerts: boolean
@@ -56,26 +58,30 @@ export function getSSLConfig(): SSLConfig {
 }
 
 /**
- * Creates an HTTPS agent with combined SSL configuration
+ * Creates an HTTPS agent with Proxy and combined SSL configuration
  */
-export function createHTTPSAgent(sslConfig: SSLConfig): https.Agent {
+export function createHTTPSAgent(sslConfig: SSLConfig, targetUrl: string): https.Agent {
+  const proxyConfig = getProxyConfig(targetUrl)
+  const sslOptions: https.AgentOptions = {}
+
   if (sslConfig.trustAllCerts) {
-    debug('Creating HTTPS agent with SSL verification disabled')
-    return new https.Agent({
-      rejectUnauthorized: false
-    })
+    sslOptions.rejectUnauthorized = false
+    debug('SSL verification disabled for HTTPS agent')
   }
 
   if (sslConfig.combinedCAs) {
-    debug('Creating HTTPS agent with combined CA certificates')
-    return new https.Agent({
-      ca: sslConfig.combinedCAs,
-      rejectUnauthorized: true
-    })
+    sslOptions.ca = sslConfig.combinedCAs
+    sslOptions.rejectUnauthorized = true
+    debug('Using combined CA certificates for HTTPS agent')
   }
 
-  debug('Creating default HTTPS agent')
-  return new https.Agent()
+  if (proxyConfig.useProxy && proxyConfig.proxyUrl) {
+    debug(`Creating HTTPS proxy agent with proxy: ${proxyConfig.proxyUrl.origin}`)
+    return new httpsProxyAgent.HttpsProxyAgent(proxyConfig.proxyUrl, sslOptions)
+  }
+
+  debug('Creating HTTPS agent without proxy')
+  return new https.Agent(sslOptions)
 }
 
 /**

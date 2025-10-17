@@ -6,6 +6,8 @@ describe('SSL Utils Unit Tests', () => {
   let mockFs: any
   let mockTls: any
   let mockCore: any
+  let mockHttpsProxyAgent: any
+  let mockProxyUtils: any
 
   beforeEach(() => {
     jest.resetModules()
@@ -29,11 +31,23 @@ describe('SSL Utils Unit Tests', () => {
       warning: jest.fn()
     }
 
+    mockHttpsProxyAgent = {
+      HttpsProxyAgent: jest.fn().mockImplementation(() => ({
+        type: 'HttpsProxyAgent'
+      }))
+    }
+
+    mockProxyUtils = {
+      getProxyConfig: jest.fn().mockReturnValue({useProxy: false})
+    }
+
     // Mock modules
     jest.doMock('fs', () => mockFs)
     jest.doMock('tls', () => mockTls)
     jest.doMock('@actions/core', () => mockCore)
     jest.doMock('../../../src/blackduck-security-action/inputs', () => mockInputs)
+    jest.doMock('https-proxy-agent', () => mockHttpsProxyAgent)
+    jest.doMock('../../../src/blackduck-security-action/proxy-utils', () => mockProxyUtils)
 
     // Import after mocking
     sslUtils = require('../../../src/blackduck-security-action/ssl-utils')
@@ -161,13 +175,29 @@ describe('SSL Utils Unit Tests', () => {
   })
 
   describe('createHTTPSAgent', () => {
+    let originalEnv: NodeJS.ProcessEnv
+
+    beforeEach(() => {
+      originalEnv = {...process.env}
+      // Clear proxy environment variables by default
+      delete process.env.HTTPS_PROXY
+      delete process.env.https_proxy
+      delete process.env.HTTP_PROXY
+      delete process.env.http_proxy
+    })
+
+    afterEach(() => {
+      process.env = originalEnv
+    })
+
     test('should create agent with rejectUnauthorized=false when trustAllCerts is true', () => {
       const sslConfig = {trustAllCerts: true}
 
-      const result = sslUtils.createHTTPSAgent(sslConfig)
+      const result = sslUtils.createHTTPSAgent(sslConfig, 'https://example.com/api')
 
       expect(result).toBeDefined()
-      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent with SSL verification disabled')
+      expect(mockCore.debug).toHaveBeenCalledWith('SSL verification disabled for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
     })
 
     test('should create agent with combinedCAs when provided', () => {
@@ -176,19 +206,105 @@ describe('SSL Utils Unit Tests', () => {
         combinedCAs: ['ca1', 'ca2', 'ca3']
       }
 
-      const result = sslUtils.createHTTPSAgent(sslConfig)
+      const result = sslUtils.createHTTPSAgent(sslConfig, 'https://example.com/api')
 
       expect(result).toBeDefined()
-      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent with combined CA certificates')
+      expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
     })
 
     test('should create default agent when no special config', () => {
       const sslConfig = {trustAllCerts: false}
 
-      const result = sslUtils.createHTTPSAgent(sslConfig)
+      const result = sslUtils.createHTTPSAgent(sslConfig, 'https://example.com/api')
 
       expect(result).toBeDefined()
-      expect(mockCore.debug).toHaveBeenCalledWith('Creating default HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
+    })
+
+    test('should call getProxyConfig with correct targetUrl', () => {
+      const sslConfig = {trustAllCerts: false}
+      const targetUrl = 'https://example.com/api'
+
+      sslUtils.createHTTPSAgent(sslConfig, targetUrl)
+
+      expect(mockProxyUtils.getProxyConfig).toHaveBeenCalledWith(targetUrl)
+    })
+
+    test('should create proxy agent when getProxyConfig returns proxy config', () => {
+      mockProxyUtils.getProxyConfig.mockReturnValue({
+        useProxy: true,
+        proxyUrl: new URL('https://proxy.example.com:8080')
+      })
+
+      const sslConfig = {trustAllCerts: false}
+      const targetUrl = 'https://example.com/api'
+
+      const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://proxy.example.com:8080'), {})
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: https://proxy.example.com:8080')
+    })
+
+    test('should create proxy agent with SSL options when getProxyConfig returns proxy config', () => {
+      mockProxyUtils.getProxyConfig.mockReturnValue({
+        useProxy: true,
+        proxyUrl: new URL('http://proxy.company.com:3128')
+      })
+
+      const sslConfig = {
+        trustAllCerts: false,
+        combinedCAs: ['ca1', 'ca2']
+      }
+      const targetUrl = 'https://api.example.com/data'
+
+      const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('http://proxy.company.com:3128'), {
+        ca: ['ca1', 'ca2'],
+        rejectUnauthorized: true
+      })
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: http://proxy.company.com:3128')
+    })
+
+    test('should create proxy agent with trustAllCerts when getProxyConfig returns proxy config', () => {
+      mockProxyUtils.getProxyConfig.mockReturnValue({
+        useProxy: true,
+        proxyUrl: new URL('https://secure-proxy.example.com:8443')
+      })
+
+      const sslConfig = {trustAllCerts: true}
+      const targetUrl = 'https://secure.example.com/endpoint'
+
+      const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://secure-proxy.example.com:8443'), {rejectUnauthorized: false})
+      expect(result).toBeDefined()
+      expect(result.type).toBe('HttpsProxyAgent')
+      expect(mockCore.debug).toHaveBeenCalledWith('SSL verification disabled for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: https://secure-proxy.example.com:8443')
+    })
+
+    test('should create regular agent when getProxyConfig returns no proxy', () => {
+      mockProxyUtils.getProxyConfig.mockReturnValue({useProxy: false})
+
+      const sslConfig = {
+        trustAllCerts: false,
+        combinedCAs: ['ca1', 'ca2']
+      }
+      const targetUrl = 'https://internal.example.com/api'
+
+      const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
+
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).not.toHaveBeenCalled()
+      expect(result).toBeDefined()
+      expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
+      expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS agent without proxy')
     })
   })
 
