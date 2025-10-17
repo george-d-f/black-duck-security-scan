@@ -24,17 +24,46 @@ export function getProxyConfig(targetUrl: string): ProxyConfig {
 
   const proxyUrl = httpsProxy || httpProxy
   if (!proxyUrl) {
+    debug('No proxy configured (HTTPS_PROXY/HTTP_PROXY environment variables not set)')
     return {useProxy: false}
   }
 
   try {
+    const parsedProxyUrl = new URL(proxyUrl)
+    debug(`Using proxy: ${parsedProxyUrl.origin} for target URL: ${targetUrl}`)
     return {
       useProxy: true,
-      proxyUrl: new URL(proxyUrl)
+      proxyUrl: parsedProxyUrl
     }
-  } catch {
+  } catch (error) {
+    debug(`Invalid proxy URL format: ${proxyUrl}. Error: ${error}. Proxy will not be used.`)
     return {useProxy: false}
   }
+}
+
+/**
+ * Checks if a hostname matches a NO_PROXY pattern entry
+ */
+function matchesNoProxyPattern(hostname: string, pattern: string): boolean {
+  // Handle wildcard subdomain patterns (*.example.com)
+  if (pattern.startsWith('*.')) {
+    const domain = pattern.substring(2)
+    return hostname === domain || hostname.endsWith(`.${domain}`)
+  }
+
+  // Handle suffix wildcard patterns (*example.com)
+  if (pattern.startsWith('*')) {
+    const suffix = pattern.substring(1)
+    return hostname.endsWith(suffix)
+  }
+
+  // Handle domain suffix match (.example.com matches subdomain.example.com)
+  if (pattern.startsWith('.')) {
+    return hostname.endsWith(pattern)
+  }
+
+  // Handle exact match or subdomain match (example.com matches example.com or sub.example.com)
+  return hostname === pattern || hostname.endsWith(`.${pattern}`)
 }
 
 /**
@@ -51,26 +80,7 @@ export function shouldBypassProxy(targetUrl: string, noProxy: string): boolean {
     for (const entry of noProxyList) {
       if (!entry) continue
 
-      // Handle wildcard patterns (*.example.com)
-      if (entry.startsWith('*.')) {
-        const domain = entry.substring(2)
-        if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-          return true
-        }
-      }
-      // Handle wildcard at start (*example.com)
-      else if (entry.startsWith('*')) {
-        const suffix = entry.substring(1)
-        if (hostname.endsWith(suffix)) {
-          return true
-        }
-      }
-      // Handle domain suffix match (.example.com matches subdomain.example.com)
-      else if (entry.startsWith('.') && hostname.endsWith(entry)) {
-        return true
-      }
-      // Handle exact match or subdomain match
-      else if (hostname === entry || hostname.endsWith(`.${entry}`)) {
+      if (matchesNoProxyPattern(hostname, entry)) {
         return true
       }
     }

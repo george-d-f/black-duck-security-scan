@@ -337,6 +337,124 @@ describe('Tool Cache Local Unit Tests', () => {
   })
 
   describe('downloadWithCustomSSL scenarios', () => {
+    test('should call createHTTPSAgent with correct parameters when using custom SSL', async () => {
+      const uniqueDest = `/tmp/test-agent-${Date.now()}-${Math.random()}.zip`
+      const testUrl = 'https://example.com/file.zip'
+      const sslConfig = {trustAllCerts: true, customCA: true}
+
+      mockSslUtils.getSSLConfig.mockReturnValue(sslConfig)
+
+      const mockWriteStream: any = {
+        on: createMockFn().mockImplementation((event: any, callback: any) => {
+          if (event === 'finish') setTimeout(callback, 0)
+          return mockWriteStream
+        })
+      }
+      mockFs.createWriteStream.mockReturnValue(mockWriteStream)
+      mockFs.existsSync.mockReturnValueOnce(false).mockReturnValueOnce(true)
+      mockFs.statSync.mockReturnValue({size: 1024})
+
+      mockHttps.request.mockImplementation((options: any, callback: Function) => {
+        const req = {
+          on: createMockFn(),
+          setTimeout: createMockFn(),
+          end: createMockFn(),
+          destroy: createMockFn()
+        }
+
+        setTimeout(() => {
+          const res = {
+            statusCode: 200,
+            headers: {'content-length': '1024'},
+            on: createMockFn().mockImplementation((event: string, cb: Function) => {
+              if (event === 'data') {
+                cb(Buffer.from('test-data'))
+              }
+              return res
+            }),
+            pipe: createMockFn().mockImplementation((writeStream: any) => {
+              setTimeout(
+                () =>
+                  writeStream.on.mock.calls.forEach((call: any) => {
+                    if (call[0] === 'finish') call[1]()
+                  }),
+                0
+              )
+            })
+          }
+          callback(res)
+        }, 0)
+
+        return req
+      })
+
+      await toolCache.downloadTool(testUrl, uniqueDest)
+
+      // Verify createHTTPSAgent was called with correct parameters
+      expect(mockSslUtils.createHTTPSAgent).toHaveBeenCalledWith(sslConfig, testUrl)
+      expect(mockSslUtils.createHTTPSAgent).toHaveBeenCalledTimes(1)
+    })
+
+    test('should pass agent to https.request options', async () => {
+      const uniqueDest = `/tmp/test-agent-options-${Date.now()}-${Math.random()}.zip`
+      const mockAgent = {options: {rejectUnauthorized: false}}
+
+      mockSslUtils.getSSLConfig.mockReturnValue({trustAllCerts: true})
+      mockSslUtils.createHTTPSAgent.mockReturnValue(mockAgent)
+
+      const mockWriteStream: any = {
+        on: createMockFn().mockImplementation((event: any, callback: any) => {
+          if (event === 'finish') setTimeout(callback, 0)
+          return mockWriteStream
+        })
+      }
+      mockFs.createWriteStream.mockReturnValue(mockWriteStream)
+      mockFs.existsSync.mockReturnValueOnce(false).mockReturnValueOnce(true)
+      mockFs.statSync.mockReturnValue({size: 1024})
+
+      let capturedOptions: any = null
+      mockHttps.request.mockImplementation((options: any, callback: Function) => {
+        capturedOptions = options
+        const req = {
+          on: createMockFn(),
+          setTimeout: createMockFn(),
+          end: createMockFn(),
+          destroy: createMockFn()
+        }
+
+        setTimeout(() => {
+          const res = {
+            statusCode: 200,
+            headers: {'content-length': '1024'},
+            on: createMockFn().mockImplementation((event: string, cb: Function) => {
+              if (event === 'data') {
+                cb(Buffer.from('test-data'))
+              }
+              return res
+            }),
+            pipe: createMockFn().mockImplementation((writeStream: any) => {
+              setTimeout(
+                () =>
+                  writeStream.on.mock.calls.forEach((call: any) => {
+                    if (call[0] === 'finish') call[1]()
+                  }),
+                0
+              )
+            })
+          }
+          callback(res)
+        }, 0)
+
+        return req
+      })
+
+      await toolCache.downloadTool('https://example.com/file.zip', uniqueDest)
+
+      // Verify the agent was set in request options
+      expect(capturedOptions).not.toBeNull()
+      expect(capturedOptions.agent).toBe(mockAgent)
+    })
+
     test('should handle HTTPS request with custom SSL', async () => {
       // Use a unique destination to avoid conflicts
       const uniqueDest = `/tmp/test-${Date.now()}-${Math.random()}.zip`
