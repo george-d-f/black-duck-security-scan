@@ -242,10 +242,7 @@ describe('SSL Utils Unit Tests', () => {
 
       const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
 
-      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(
-        new URL('https://proxy.example.com:8080'),
-        {}
-      )
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://proxy.example.com:8080'), {})
       expect(result).toBeDefined()
       expect(result.type).toBe('HttpsProxyAgent')
       expect(mockCore.debug).toHaveBeenCalledWith('Creating HTTPS proxy agent with proxy: https://proxy.example.com:8080')
@@ -265,13 +262,10 @@ describe('SSL Utils Unit Tests', () => {
 
       const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
 
-      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(
-        new URL('http://proxy.company.com:3128'),
-        {
-          ca: ['ca1', 'ca2'],
-          rejectUnauthorized: true
-        }
-      )
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('http://proxy.company.com:3128'), {
+        ca: ['ca1', 'ca2'],
+        rejectUnauthorized: true
+      })
       expect(result).toBeDefined()
       expect(result.type).toBe('HttpsProxyAgent')
       expect(mockCore.debug).toHaveBeenCalledWith('Using combined CA certificates for HTTPS agent')
@@ -289,10 +283,7 @@ describe('SSL Utils Unit Tests', () => {
 
       const result = sslUtils.createHTTPSAgent(sslConfig, targetUrl)
 
-      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(
-        new URL('https://secure-proxy.example.com:8443'),
-        {rejectUnauthorized: false}
-      )
+      expect(mockHttpsProxyAgent.HttpsProxyAgent).toHaveBeenCalledWith(new URL('https://secure-proxy.example.com:8443'), {rejectUnauthorized: false})
       expect(result).toBeDefined()
       expect(result.type).toBe('HttpsProxyAgent')
       expect(mockCore.debug).toHaveBeenCalledWith('SSL verification disabled for HTTPS agent')

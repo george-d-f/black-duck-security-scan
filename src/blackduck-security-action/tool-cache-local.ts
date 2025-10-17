@@ -15,7 +15,7 @@ import {OutgoingHttpHeaders} from 'http'
 import {v4 as uuidv4} from 'uuid'
 import os from 'os'
 import {NON_RETRY_HTTP_CODES, RETRY_COUNT, RETRY_DELAY_IN_MILLISECONDS} from '../application-constants'
-import {getSSLConfig, createHTTPSRequestOptions} from './ssl-utils'
+import {createHTTPSAgent, createHTTPSRequestOptions, getSSLConfig} from './ssl-utils'
 
 export class HTTPError extends Error {
   constructor(readonly httpStatusCode: number | undefined) {
@@ -164,6 +164,9 @@ async function downloadWithCustomSSL(downloadUrl: string, dest: string, sslConfi
         requestOptions.headers.authorization = auth
       }
     }
+
+    // Create HTTPS agent with SSL and proxy support
+    requestOptions.agent = createHTTPSAgent(sslConfig, downloadUrl)
 
     const req = https.request(requestOptions, res => {
       if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 400)) {

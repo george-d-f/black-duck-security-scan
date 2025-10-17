@@ -100,6 +100,10 @@ describe('Tool Cache Local Unit Tests', () => {
         port: 443,
         path: '/test',
         method: 'GET'
+      }),
+      createHTTPSAgent: createMockFn().mockReturnValue({
+        // Mock HTTPS agent
+        options: {}
       })
     }
 
