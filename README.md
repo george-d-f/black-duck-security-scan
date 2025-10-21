@@ -11,10 +11,10 @@ To use Black Duck Security Action, please follow the steps below:
 1. Configure GitHub as described in the [GitHub Prerequisites](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-prerequisites.html) page.
   
 2. Install and configure Black Duck Security Action for the Black Duck product you are using. <br/>
-[Polaris](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-polaris.html) <br/>
-[Black Duck SCA](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-blackduck.html)  <br/>
-[Coverity](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-coverity.html) <br/>
-[SRM](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-srm.html) <br/>
+Polaris - [Quick Start Guide](https://documentation.blackduck.com/bundle/bridge/page/documentation/t_github-polaris-quickstart.html) | [Reference page](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-polaris.html) <br/>
+Black Duck SCA - [Quick Start Guide](https://documentation.blackduck.com/bundle/bridge/page/documentation/t_github-blackduck-quickstart.html) | [Reference Page](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-blackduck.html)  <br/>
+Coverity - [Quick Start Guide](https://documentation.blackduck.com/bundle/bridge/page/documentation/t_github-coverity-quickstart.html) | [Reference Page](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-coverity.html) <br/>
+SRM - [Quick Start Guide](https://documentation.blackduck.com/bundle/bridge/page/documentation/t_github-srm-quickstart.html) | [Reference Page](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-srm.html) <br/>
 
 3. For additional configuration options, visit the [Additional GitHub Configuration](https://documentation.blackduck.com/bundle/bridge/page/documentation/c_additional-github-parameters.html) page.
 
